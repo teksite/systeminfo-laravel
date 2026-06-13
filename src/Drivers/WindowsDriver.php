@@ -2,157 +2,128 @@
 
 namespace Teksite\SystemInfo\Drivers;
 
-use Teksite\SystemInfo\Concerns\DriverCal;
 use Teksite\SystemInfo\Contracts\DriverInterface;
+use Teksite\SystemInfo\Concerns\CalculatesPercent;
+use Teksite\SystemInfo\Support\SafeExecutor;
+use Teksite\SystemInfo\Support\SystemDetector;
 
 class WindowsDriver implements DriverInterface
 {
-    use DriverCal;
+    use CalculatesPercent;
 
-    /**
-     * =========================
-     * CPU
-     * =========================
-     */
     public function cpu(): array
     {
+        $cores = SafeExecutor::exec('wmic cpu get NumberOfCores');
+
+        preg_match_all('/\d+/', $cores ?? '', $m);
+
         return [
-            'cores'         => $this->getCpuCores(),
-            'usage_percent' => $this->getCpuUsage(),
+            'cores' => (int) ($m[0][0] ?? 0),
+            'usage_percent' => $this->cpuUsage(),
         ];
     }
 
-    protected function getCpuCores(): int
+    private function cpuUsage(): float
     {
-        $output = shell_exec('wmic cpu get NumberOfCores');
+        $cmd = 'powershell -command "Get-Counter \'\\Processor(_Total)\\% Processor Time\' | Select -ExpandProperty CounterSamples | Select -ExpandProperty CookedValue"';
 
-        preg_match_all('/\d+/', $output, $matches);
-
-        return isset($matches[0][0]) ? (int)$matches[0][0] : 0;
+        return (float) SafeExecutor::exec($cmd);
     }
 
-    protected function getCpuUsage(): float
-    {
-        // PowerShell counter (instant CPU load)
-        $cmd = 'powershell -command "Get-Counter \'\Processor(_Total)\% Processor Time\' | Select -ExpandProperty CounterSamples | Select -ExpandProperty CookedValue"';
-
-        $output = shell_exec($cmd);
-
-        return round((float)trim($output), 2);
-    }
-
-    /**
-     * =========================
-     * RAM
-     * =========================
-     */
     public function ram(): array
     {
-        $output = shell_exec('wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /Value');
+        $out = SafeExecutor::exec('wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /Value');
 
-        preg_match('/TotalVisibleMemorySize=(\d+)/', $output, $total);
-        preg_match('/FreePhysicalMemory=(\d+)/', $output, $free);
+        preg_match('/TotalVisibleMemorySize=(\d+)/', $out ?? '', $t);
+        preg_match('/FreePhysicalMemory=(\d+)/', $out ?? '', $f);
 
-        $totalKb = isset($total[1]) ? (int)$total[1] : 0;
-        $freeKb = isset($free[1]) ? (int)$free[1] : 0;
-
-        $usedKb = $totalKb - $freeKb;
+        $total = (int) ($t[1] ?? 0);
+        $free = (int) ($f[1] ?? 0);
 
         return [
-            'total_kb'      => $totalKb,
-            'free_kb'       => $freeKb,
-            'used_kb'       => $usedKb,
-            'usage_percent' => $this->percent($usedKb, $totalKb),
+            'total_kb' => $total,
+            'free_kb' => $free,
+            'used_kb' => $total - $free,
+            'usage_percent' => $this->percent($total - $free, $total),
         ];
     }
 
-    /**
-     * =========================
-     * DISK
-     * =========================
-     */
     public function disk(): array
     {
-        $cmd = 'wmic logicaldisk get size,freespace,caption';
+        $out = SafeExecutor::exec('wmic logicaldisk get size,freespace,caption');
 
-        $output = shell_exec($cmd);
+        if (!$out) return [];
 
-        $lines = array_filter(array_map('trim', explode("\n", trim($output))));
+        $lines = explode("\n", $out);
 
         $disks = [];
 
         foreach ($lines as $line) {
-            if (!preg_match('/^([A-Z]):\s+(\d+)\s+(\d+)$/', $line, $m)) {
+            if (!preg_match('/([A-Z]):\s+(\d+)\s+(\d+)/', $line, $m)) {
                 continue;
             }
 
-            $disk = $m[1];
-            $free = (int)$m[2];
-            $size = (int)$m[3];
-
-            $used = $size - $free;
+            $free = (int) $m[2];
+            $size = (int) $m[3];
 
             $disks[] = [
-                'disk'          => $disk,
-                'total_bytes'   => $size,
-                'free_bytes'    => $free,
-                'used_bytes'    => $used,
-                'usage_percent' => $this->percent($used, $size),
+                'disk' => $m[1],
+                'total_bytes' => $size,
+                'free_bytes' => $free,
+                'used_bytes' => $size - $free,
+                'usage_percent' => $this->percent($size - $free, $size),
             ];
         }
 
         return $disks;
     }
 
-    /**
-     * =========================
-     * GPU (NVIDIA ONLY)
-     * =========================
-     */
     public function gpu(): ?array
     {
-        $cmd = 'nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free,utilization.gpu --format=csv,noheader,nounits';
-
-        $output = shell_exec($cmd);
-
-        if (!$output) {
+        if (!SystemDetector::hasNvidia()) {
             return null;
         }
 
-        $lines = array_filter(array_map('trim', explode("\n", trim($output))));
+        $out = SafeExecutor::exec(
+            'nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free,utilization.gpu --format=csv,noheader,nounits'
+        );
 
-        $gpus = [];
+        if (!$out) return null;
 
-        foreach ($lines as $line) {
-            $p = array_map('trim', explode(',', $line));
+        return collect(explode("\n", $out))
+            ->filter()
+            ->map(function ($row) {
+                $p = array_map('trim', explode(',', $row));
 
-            $gpus[] = [
-                'name'            => $p[0] ?? null,
-                'memory_total_mb' => isset($p[1]) ? (int)$p[1] : null,
-                'memory_used_mb'  => isset($p[2]) ? (int)$p[2] : null,
-                'memory_free_mb'  => isset($p[3]) ? (int)$p[3] : null,
-                'usage_percent'   => isset($p[4]) ? (int)$p[4] : null,
-            ];
-        }
-
-        return $gpus;
+                return [
+                    'name' => $p[0] ?? null,
+                    'memory_total_mb' => (int) ($p[1] ?? 0),
+                    'memory_used_mb' => (int) ($p[2] ?? 0),
+                    'memory_free_mb' => (int) ($p[3] ?? 0),
+                    'usage_percent' => (int) ($p[4] ?? 0),
+                ];
+            })
+            ->values()
+            ->toArray();
     }
 
-    /**
-     * =========================
-     * FULL SNAPSHOT
-     * =========================
-     */
     public function snapshot(): array
     {
         return [
-            'cpu'       => $this->cpu(),
-            'ram'       => $this->ram(),
-            'disk'      => $this->disk(),
-            'gpu'       => $this->gpu(),
-            'timestamp' => now()->toDateTimeString(),
+            'os' => 'windows',
+            'cpu' => $this->cpu(),
+            'ram' => $this->ram(),
+            'disk' => $this->disk(),
+            'gpu' => $this->gpu(),
+            'timestamp' => now(),
         ];
     }
 
-
+    public function capabilities(): array
+    {
+        return [
+            'wmic' => SystemDetector::hasWmic(),
+            'nvidia' => SystemDetector::hasNvidia(),
+        ];
+    }
 }
