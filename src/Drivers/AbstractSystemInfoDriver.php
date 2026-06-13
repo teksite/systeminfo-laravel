@@ -2,9 +2,9 @@
 
 namespace Teksite\SystemInfo\Drivers;
 
-
 use Illuminate\Support\Facades\DB;
 use Teksite\SystemInfo\Contracts\SystemInfoDriverInterface;
+use Teksite\SystemInfo\DTOs\SystemInfoDTO;
 
 abstract class AbstractSystemInfoDriver implements SystemInfoDriverInterface
 {
@@ -64,11 +64,11 @@ abstract class AbstractSystemInfoDriver implements SystemInfoDriverInterface
         try {
             $driver = DB::getDriverName();
             $version = match ($driver) {
-                'mysql'  => DB::selectOne('SELECT VERSION() as v')?->v ?? 'unknown',
-                'pgsql'  => DB::selectOne('SELECT version() as v')?->v ?? 'unknown',
-                'sqlite' => DB::selectOne('SELECT sqlite_version() as v')?->v ?? 'unknown',
+                'mysql'     => DB::selectOne('SELECT VERSION() as v')?->v ?? 'unknown',
+                'pgsql'     => DB::selectOne('SELECT version() as v')?->v ?? 'unknown',
+                'sqlite'    => DB::selectOne('SELECT sqlite_version() as v')?->v ?? 'unknown',
                 'sqlserver' => DB::selectOne('SELECT @@VERSION AS v')?->v ?? 'unknown',
-                default  => 'unknown',
+                default     => 'unknown',
             };
 
             $dbName = config("database.connections.{$driver}.database", 'unknown');

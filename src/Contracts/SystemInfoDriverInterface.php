@@ -1,6 +1,8 @@
 <?php
 namespace Teksite\SystemInfo\Contracts;
 
+use Teksite\SystemInfo\DTOs\SystemInfoDTO;
+
 interface SystemInfoDriverInterface
 {
     public function getOsInfo(): array;
