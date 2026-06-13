@@ -4,7 +4,7 @@ namespace Teksite\SystemInfo\Contracts;
 
 use Teksite\SystemInfo\DTOs\ApplicationData;
 
-interface ApplicationCollectorInterface {
+interface CollectorInterface {
     public function collect(): ApplicationData;
 
 }

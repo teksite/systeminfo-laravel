@@ -2,10 +2,10 @@
 
 namespace Teksite\SystemInfo\Collectors;
 
-use Teksite\SystemInfo\Contracts\ApplicationCollectorInterface;
+use Teksite\SystemInfo\Contracts\CollectorInterface;
 use Teksite\SystemInfo\DTOs\ApplicationData;
 
-class ApplicationCollector implements ApplicationCollectorInterface
+class Collector implements CollectorInterface
 {
     public function collect(): ApplicationData
     {
