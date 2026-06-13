@@ -3,126 +3,102 @@
 namespace Teksite\SystemInfo\Drivers;
 
 use Teksite\SystemInfo\Contracts\DriverInterface;
-use Teksite\SystemInfo\Concerns\CalculatesPercent;
 use Teksite\SystemInfo\Support\SafeExecutor;
-use Teksite\SystemInfo\Support\SystemDetector;
 
 class LinuxDriver implements DriverInterface
 {
-    use CalculatesPercent;
-
     public function cpu(): array
     {
+        $info = SafeExecutor::fileExists('/proc/cpuinfo') ? file_get_contents('/proc/cpuinfo') : null;
+
+        if (!$info) return [
+            'model'   => null,
+            'cores'   => 0,
+            'threads' => 0,
+            'load'    => sys_getloadavg(),
+        ];
+
+        preg_match('/model name\s+:\s+(.+)/', $info, $model);
+        preg_match('/cpu cores\s+:\s+(\d+)/', $info, $cores);
+        preg_match('/siblings\s+:\s+(\d+)/', $info, $threads);
+
         return [
-            'cores' => (int) (SafeExecutor::exec('nproc') ?? 0),
-            'load_average' => sys_getloadavg(),
-            'available' => SystemDetector::hasNproc(),
+            'model'   => $model[1] ?? null,
+            'cores'   => (int)($cores[1] ?? 0),
+            'threads' => (int)($threads[1] ?? 0),
+            'load'    => sys_getloadavg(),
         ];
     }
 
     public function ram(): array
     {
-        if (!SystemDetector::hasProc()) {
-            return ['error' => 'proc not accessible'];
+        $data = file_get_contents('/proc/meminfo');
+
+
+        preg_match('/MemTotal:\s+(\d+)/', $data, $t);
+        preg_match('/MemAvailable:\s+(\d+)/', $data, $a);
+
+        $total = (int)($t[1] ?? 0);
+        $avail = (int)($a[1] ?? 0);
+
+        if ($total <= 0) {
+            return [
+                'total'   => null,
+                'used'    => null,
+                'free'    => null,
+                'percent' => null,
+            ];
         }
 
-        $data = $this->readMem();
-
-        $total = $data['MemTotal'] ?? 0;
-        $free = $data['MemAvailable'] ?? $data['MemFree'] ?? 0;
+        $used = $total - $avail;
 
         return [
-            'total_kb' => $total,
-            'free_kb' => $free,
-            'used_kb' => $total - $free,
-            'usage_percent' => $this->percent($total - $free, $total),
+            'total'   => $total * 1024,
+            'used'    => $used * 1024,
+            'free'    => $avail * 1024,
+            'percent' => $total ? round(($used / $total) * 100, 2) : 0,
         ];
-    }
-
-    private function readMem(): array
-    {
-        if (!is_readable('/proc/meminfo')) {
-            return [];
-        }
-
-        $lines = file('/proc/meminfo');
-
-        $data = [];
-
-        foreach ($lines as $line) {
-            if (!str_contains($line, ':')) continue;
-
-            [$k, $v] = explode(':', $line);
-            $data[$k] = (int) filter_var($v, FILTER_SANITIZE_NUMBER_INT);
-        }
-
-        return $data;
     }
 
     public function disk(): array
     {
-        $total = @disk_total_space('/');
-        $free = @disk_free_space('/');
+        $path = '/';
 
-        if (!$total) {
-            return ['error' => 'disk not available'];
+        return [
+            'path'    => $path,
+            'total'   => disk_total_space($path),
+            'used'    => disk_total_space($path) - disk_free_space($path),
+            'free'    => disk_free_space($path),
+            'percent' => round(
+                ((disk_total_space($path) - disk_free_space($path)) / disk_total_space($path)) * 100,
+                2
+            ),
+        ];
+    }
+
+    public function gpu(): array
+    {
+        if (!SafeExecutor::commandExists('lspci')) {
+            return [
+                'name'           => null,
+                'memory'         => null,
+                'driver_version' => null,
+                'refresh_rate'   => null,
+            ];
         }
 
-        return [
-            'total_bytes' => $total,
-            'free_bytes' => $free,
-            'used_bytes' => $total - $free,
-            'usage_percent' => $this->percent($total - $free, $total),
-        ];
+        $out = SafeExecutor::exec('lspci | grep -i vga');
+
+        return $out
+            ? [
+                'info' => $out,
+            ]
+            : [
+                'name'           => null,
+                'memory'         => null,
+                'driver_version' => null,
+                'refresh_rate'   => null,
+            ];
     }
 
-    public function gpu(): ?array
-    {
-        if (!SystemDetector::hasNvidia()) {
-            return null;
-        }
-
-        $out = SafeExecutor::exec(
-            'nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free,utilization.gpu --format=csv,noheader,nounits'
-        );
-
-        if (!$out) return null;
-
-        return collect(explode("\n", $out))
-            ->filter()
-            ->map(function ($row) {
-                $p = array_map('trim', explode(',', $row));
-
-                return [
-                    'name' => $p[0] ?? null,
-                    'memory_total_mb' => (int) ($p[1] ?? 0),
-                    'memory_used_mb' => (int) ($p[2] ?? 0),
-                    'memory_free_mb' => (int) ($p[3] ?? 0),
-                    'usage_percent' => (int) ($p[4] ?? 0),
-                ];
-            })
-            ->values()
-            ->toArray();
-    }
-
-    public function snapshot(): array
-    {
-        return [
-            'os' => 'linux',
-            'cpu' => $this->cpu(),
-            'ram' => $this->ram(),
-            'disk' => $this->disk(),
-            'gpu' => $this->gpu(),
-            'timestamp' => now(),
-        ];
-    }
-
-    public function capabilities(): array
-    {
-        return [
-            'proc' => SystemDetector::hasProc(),
-            'nproc' => SystemDetector::hasNproc(),
-            'nvidia' => SystemDetector::hasNvidia(),
-        ];
-    }
 }

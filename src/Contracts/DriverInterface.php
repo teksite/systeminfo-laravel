@@ -10,8 +10,8 @@ interface DriverInterface
 
     public function disk(): array;
 
-    public function gpu(): ?array;
+    public function gpu(): array;
 
-    public function capabilities(): array;
+
 
 }
