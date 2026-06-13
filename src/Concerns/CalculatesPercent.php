@@ -2,7 +2,8 @@
 
 namespace Teksite\SystemInfo\Concerns;
 
-trait DriverCal {
+trait CalculatesPercent
+{
     protected function percent(float $used, float $total): float
     {
         if ($total <= 0) return 0;
