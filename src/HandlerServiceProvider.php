@@ -1,6 +1,6 @@
 <?php
 
-namespace Teksite\Handler;
+namespace Teksite\SystemInfo;
 
 use Illuminate\Support\ServiceProvider;
 use Teksite\Handler\Services\Builder\ResponderServices;
