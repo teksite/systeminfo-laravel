@@ -2,9 +2,15 @@
 
 namespace Teksite\SystemInfo\Drivers;
 
-class LinuxDriver {
+use Teksite\SystemInfo\Concerns\DriverCal;
+use Teksite\SystemInfo\Contracts\DriverInterface;
 
-   /**
+class LinuxDriver implements DriverInterface
+{
+
+    use DriverCal;
+
+    /**
      * CPU INFO
      */
     public function cpu(): array
@@ -114,7 +120,7 @@ class LinuxDriver {
     }
 
     /**
-     * FULL SNAPSHOT (ترکیبی همه موارد)
+     * FULL SNAPSHOT
      */
     public function snapshot(): array
     {
@@ -127,15 +133,4 @@ class LinuxDriver {
         ];
     }
 
-    /**
-     * HELPER: percent calculator
-     */
-    protected function percent(float $used, float $total): float
-    {
-        if ($total <= 0) {
-            return 0;
-        }
-
-        return round(($used / $total) * 100, 2);
-    }
 }

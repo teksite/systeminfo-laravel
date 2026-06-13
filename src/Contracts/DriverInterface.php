@@ -4,13 +4,11 @@ namespace Teksite\SystemInfo\Contracts;
 
 interface DriverInterface
 {
-    public function file(string $path): ?string;
+    public function cpu(): array;
 
-    public function command(string $command): ?string;
+    public function ram(): array;
 
-    public function hasFile(string $path): bool;
+    public function disk(): array;
+    public function gpu(): ?array;
 
-    public function hasCommand(string $command): bool;
-
-    public function capabilities(): array;
 }
