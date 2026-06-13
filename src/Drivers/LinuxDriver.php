@@ -2,139 +2,127 @@
 
 namespace Teksite\SystemInfo\Drivers;
 
-use Teksite\SystemInfo\Concerns\DriverCal;
 use Teksite\SystemInfo\Contracts\DriverInterface;
+use Teksite\SystemInfo\Concerns\CalculatesPercent;
+use Teksite\SystemInfo\Support\SafeExecutor;
+use Teksite\SystemInfo\Support\SystemDetector;
 
 class LinuxDriver implements DriverInterface
 {
+    use CalculatesPercent;
 
-    use DriverCal;
-
-    /**
-     * CPU INFO
-     */
     public function cpu(): array
     {
         return [
-            'cores'        => $this->getCpuCores(),
-            'load_average' => sys_getloadavg(), // [1min, 5min, 15min]
+            'cores' => (int) (SafeExecutor::exec('nproc') ?? 0),
+            'load_average' => sys_getloadavg(),
+            'available' => SystemDetector::hasNproc(),
         ];
     }
 
-    protected function getCpuCores(): int
-    {
-        return (int)trim(shell_exec('nproc'));
-    }
-
-    /**
-     * RAM INFO
-     */
     public function ram(): array
     {
-        $memInfo = $this->readProcMemInfo();
+        if (!SystemDetector::hasProc()) {
+            return ['error' => 'proc not accessible'];
+        }
 
-        $total = $memInfo['MemTotal'] ?? 0;
-        $available = $memInfo['MemAvailable'] ?? $memInfo['MemFree'] ?? 0;
+        $data = $this->readMem();
 
-        $used = $total - $available;
+        $total = $data['MemTotal'] ?? 0;
+        $free = $data['MemAvailable'] ?? $data['MemFree'] ?? 0;
 
         return [
-            'total_kb'      => $total,
-            'used_kb'       => $used,
-            'free_kb'       => $available,
-            'usage_percent' => $this->percent($used, $total),
+            'total_kb' => $total,
+            'free_kb' => $free,
+            'used_kb' => $total - $free,
+            'usage_percent' => $this->percent($total - $free, $total),
         ];
     }
 
-    protected function readProcMemInfo(): array
+    private function readMem(): array
     {
-        $lines = @file('/proc/meminfo');
-
-        if (!$lines) {
+        if (!is_readable('/proc/meminfo')) {
             return [];
         }
+
+        $lines = file('/proc/meminfo');
 
         $data = [];
 
         foreach ($lines as $line) {
-            if (strpos($line, ':') === false) {
-                continue;
-            }
+            if (!str_contains($line, ':')) continue;
 
-            [$key, $value] = explode(':', $line);
-
-            $data[$key] = (int)filter_var($value, FILTER_SANITIZE_NUMBER_INT);
+            [$k, $v] = explode(':', $line);
+            $data[$k] = (int) filter_var($v, FILTER_SANITIZE_NUMBER_INT);
         }
 
         return $data;
     }
 
-    /**
-     * DISK INFO
-     */
-    public function disk(string $path = '/'): array
+    public function disk(): array
     {
-        $total = disk_total_space($path);
-        $free = disk_free_space($path);
-        $used = $total - $free;
+        $total = @disk_total_space('/');
+        $free = @disk_free_space('/');
+
+        if (!$total) {
+            return ['error' => 'disk not available'];
+        }
 
         return [
-            'path'          => $path,
-            'total_bytes'   => $total,
-            'used_bytes'    => $used,
-            'free_bytes'    => $free,
-            'usage_percent' => $this->percent($used, $total),
+            'total_bytes' => $total,
+            'free_bytes' => $free,
+            'used_bytes' => $total - $free,
+            'usage_percent' => $this->percent($total - $free, $total),
         ];
     }
 
-    /**
-     * GPU INFO (NVIDIA only)
-     */
     public function gpu(): ?array
     {
-        $command = 'nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free,utilization.gpu --format=csv,noheader,nounits';
-
-        $output = shell_exec($command);
-
-        if (!$output) {
+        if (!SystemDetector::hasNvidia()) {
             return null;
         }
 
-        $rows = array_filter(array_map('trim', explode("\n", trim($output))));
+        $out = SafeExecutor::exec(
+            'nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free,utilization.gpu --format=csv,noheader,nounits'
+        );
 
-        $gpus = [];
+        if (!$out) return null;
 
-        foreach ($rows as $row) {
-            $parts = array_map('trim', explode(',', $row));
+        return collect(explode("\n", $out))
+            ->filter()
+            ->map(function ($row) {
+                $p = array_map('trim', explode(',', $row));
 
-            $gpus[] = [
-                'name'            => $parts[0] ?? null,
-                'memory_total_mb' => isset($parts[1]) ? (int)$parts[1] : null,
-                'memory_used_mb'  => isset($parts[2]) ? (int)$parts[2] : null,
-                'memory_free_mb'  => isset($parts[3]) ? (int)$parts[3] : null,
-                'usage_percent'   => isset($parts[4]) ? (int)$parts[4] : null,
-            ];
-        }
-
-        return $gpus;
+                return [
+                    'name' => $p[0] ?? null,
+                    'memory_total_mb' => (int) ($p[1] ?? 0),
+                    'memory_used_mb' => (int) ($p[2] ?? 0),
+                    'memory_free_mb' => (int) ($p[3] ?? 0),
+                    'usage_percent' => (int) ($p[4] ?? 0),
+                ];
+            })
+            ->values()
+            ->toArray();
     }
 
-    /**
-     * FULL SNAPSHOT
-     */
     public function snapshot(): array
     {
         return [
-            'cpu'       => $this->cpu(),
-            'ram'       => $this->ram(),
-            'disk'      => $this->disk(),
-            'gpu'       => $this->gpu(),
-            'timestamp' => now()->toDateTimeString(),
+            'os' => 'linux',
+            'cpu' => $this->cpu(),
+            'ram' => $this->ram(),
+            'disk' => $this->disk(),
+            'gpu' => $this->gpu(),
+            'timestamp' => now(),
         ];
     }
 
     public function capabilities(): array
     {
-        // TODO: Implement capabilities() method.
+        return [
+            'proc' => SystemDetector::hasProc(),
+            'nproc' => SystemDetector::hasNproc(),
+            'nvidia' => SystemDetector::hasNvidia(),
+        ];
     }
 }
