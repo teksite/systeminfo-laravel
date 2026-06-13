@@ -1,0 +1,28 @@
+{
+    "name": "teksite/systeminfo-laravel",
+    "description": "A package to collect some information about System information suc as OS, CPU, RAM",
+    "authors": [
+        {
+            "name": "Sina Zangiband",
+            "email": "sina.zangiband@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Teksite\\SystemInfo\\": "src/"
+        }
+    },
+    "require": {
+        "php": "^8.3",
+        "laravel/framework": "^13"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Teksite\\SystemInfo\\SystemInformationProvider"
+            ]
+        }
+    }
+}
