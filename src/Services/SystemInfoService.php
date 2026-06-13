@@ -3,7 +3,7 @@
 namespace Teksite\SystemInfo\Services;
 use RuntimeException;
 use Teksite\SystemInfo\Contracts\SystemInfoDriverInterface;
-use Teksite\SystemInfo\Drivers\LinuxInfoDriver;
+use Teksite\SystemInfo\Drivers\LinuxDriver;
 use Teksite\SystemInfo\Drivers\MacOsInfoDriver;
 use Teksite\SystemInfo\Drivers\WindowsInfoDriver;
 use Teksite\SystemInfo\DTOs\SystemInfoDTO;
@@ -39,7 +39,7 @@ class SystemInfoService {
         return match (true) {
             $this->isWindows() => new WindowsInfoDriver(),
             $this->isMacOs()   => new MacOsInfoDriver(),
-            $this->isLinux()   => new LinuxInfoDriver(),
+            $this->isLinux()   => new LinuxDriver(),
             default            => throw new RuntimeException(
                 'Unsupported operating system: ' . PHP_OS_FAMILY
             ),

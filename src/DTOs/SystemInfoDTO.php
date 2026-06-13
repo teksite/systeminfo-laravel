@@ -65,12 +65,6 @@ readonly class SystemInfoDTO
                 'web_server' => $this->webServer,
                 'time'       => $this->serverTime,
             ],
-            'app'      => [
-                'time'           => $this->appTime,
-                'timezone'       => $this->appTimezone,
-                'cache_driver'   => $this->cacheDriver,
-                'session_driver' => $this->sessionDriver,
-            ],
         ];
     }
 }
