@@ -9,6 +9,9 @@ interface DriverInterface
     public function ram(): array;
 
     public function disk(): array;
+
     public function gpu(): ?array;
+
+    public function capabilities(): array;
 
 }

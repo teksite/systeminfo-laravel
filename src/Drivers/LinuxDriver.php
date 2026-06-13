@@ -133,4 +133,8 @@ class LinuxDriver implements DriverInterface
         ];
     }
 
+    public function capabilities(): array
+    {
+        // TODO: Implement capabilities() method.
+    }
 }
