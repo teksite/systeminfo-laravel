@@ -2,33 +2,32 @@
 
 namespace Teksite\SystemInfo\Drivers;
 
-use Teksite\SystemInfo\SystemInformationProvider;
-
-class LinuxInfoDriver  extends SystemInformationProvider {
+class LinuxInfoDriver extends AbstractSystemInfoDriver
+{
 
 
     public function getOsInfo(): array
     {
-        $pretty  = $this->exec("cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2 | tr -d '\"'");
-        $kernel  = $this->exec('uname -r');
+        $pretty = $this->exec("cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2 | tr -d '\"'");
+        $kernel = $this->exec('uname -r');
         $machine = $this->exec('uname -m');
-        $uptime  = $this->exec('uptime -p');
+        $uptime = $this->exec('uptime -p');
 
         return [
             'platform'     => 'Linux',
-            'distribution' => $pretty  ?? php_uname('s'),
-            'kernel'       => $kernel  ?? php_uname('r'),
+            'distribution' => $pretty ?? php_uname('s'),
+            'kernel'       => $kernel ?? php_uname('r'),
             'architecture' => $machine ?? php_uname('m'),
             'hostname'     => gethostname() ?: 'unknown',
-            'uptime'       => $uptime  ?? null,
+            'uptime'       => $uptime ?? null,
         ];
     }
 
     public function getCpuInfo(): array
     {
-        $model    = $this->exec("grep -m1 'model name' /proc/cpuinfo | awk -F': ' '{print $2}'");
-        $cores    = $this->exec("grep -c '^processor' /proc/cpuinfo");
-        $loadRaw  = $this->exec('cat /proc/loadavg');
+        $model = $this->exec("grep -m1 'model name' /proc/cpuinfo | awk -F': ' '{print $2}'");
+        $cores = $this->exec("grep -c '^processor' /proc/cpuinfo");
+        $loadRaw = $this->exec('cat /proc/loadavg');
 
         $load1 = $load5 = $load15 = null;
         if ($loadRaw) {
@@ -40,12 +39,12 @@ class LinuxInfoDriver  extends SystemInformationProvider {
 
         return [
             'model'     => $model ?? 'unknown',
-            'cores'     => $cores ? (int) $cores : null,
+            'cores'     => $cores ? (int)$cores : null,
             'usage_pct' => $usage,
             'load_avg'  => [
-                '1min'  => $load1  !== null ? (float) $load1  : null,
-                '5min'  => $load5  !== null ? (float) $load5  : null,
-                '15min' => $load15 !== null ? (float) $load15 : null,
+                '1min'  => $load1 !== null ? (float)$load1 : null,
+                '5min'  => $load5 !== null ? (float)$load5 : null,
+                '15min' => $load15 !== null ? (float)$load15 : null,
             ],
         ];
     }
@@ -54,26 +53,26 @@ class LinuxInfoDriver  extends SystemInformationProvider {
     {
         $raw = $this->exec('cat /proc/meminfo');
 
-        if (! $raw) {
+        if (!$raw) {
             return $this->ramFallback();
         }
 
-        preg_match('/MemTotal:\s+(\d+)\s+kB/i',     $raw, $total);
+        preg_match('/MemTotal:\s+(\d+)\s+kB/i', $raw, $total);
         preg_match('/MemAvailable:\s+(\d+)\s+kB/i', $raw, $available);
-        preg_match('/MemFree:\s+(\d+)\s+kB/i',      $raw, $free);
-        preg_match('/Cached:\s+(\d+)\s+kB/i',       $raw, $cached);
-        preg_match('/Buffers:\s+(\d+)\s+kB/i',      $raw, $buffers);
+        preg_match('/MemFree:\s+(\d+)\s+kB/i', $raw, $free);
+        preg_match('/Cached:\s+(\d+)\s+kB/i', $raw, $cached);
+        preg_match('/Buffers:\s+(\d+)\s+kB/i', $raw, $buffers);
 
-        $totalBytes    = isset($total[1])     ? (int) $total[1] * 1024     : 0;
-        $availBytes    = isset($available[1]) ? (int) $available[1] * 1024 : 0;
-        $usedBytes     = $totalBytes - $availBytes;
+        $totalBytes = isset($total[1]) ? (int)$total[1] * 1024 : 0;
+        $availBytes = isset($available[1]) ? (int)$available[1] * 1024 : 0;
+        $usedBytes = $totalBytes - $availBytes;
 
         return [
             'total'     => $this->formatBytes($totalBytes),
             'used'      => $this->formatBytes($usedBytes),
             'free'      => $this->formatBytes($availBytes),
-            'cached'    => isset($cached[1])   ? $this->formatBytes((int) $cached[1] * 1024)   : null,
-            'buffers'   => isset($buffers[1])  ? $this->formatBytes((int) $buffers[1] * 1024)  : null,
+            'cached'    => isset($cached[1]) ? $this->formatBytes((int)$cached[1] * 1024) : null,
+            'buffers'   => isset($buffers[1]) ? $this->formatBytes((int)$buffers[1] * 1024) : null,
             'usage_pct' => $totalBytes > 0 ? round(($usedBytes / $totalBytes) * 100, 1) : null,
             'total_raw' => $totalBytes,
             'used_raw'  => $usedBytes,
@@ -84,7 +83,7 @@ class LinuxInfoDriver  extends SystemInformationProvider {
     {
         $raw = $this->exec("df -BK --output=source,fstype,size,used,avail,pcent,target 2>/dev/null | tail -n +2");
 
-        if (! $raw) {
+        if (!$raw) {
             return $this->diskFallback();
         }
 
@@ -118,11 +117,11 @@ class LinuxInfoDriver  extends SystemInformationProvider {
 
     public function getWebServerInfo(): array
     {
-        $nginx  = $this->exec('nginx -v 2>&1');
+        $nginx = $this->exec('nginx -v 2>&1');
         $apache = $this->exec('apache2 -v 2>&1 || httpd -v 2>&1');
 
         return [
-            'nginx_version'  => $nginx  ? trim(str_replace('nginx version: ', '', $nginx))  : null,
+            'nginx_version'  => $nginx ? trim(str_replace('nginx version: ', '', $nginx)) : null,
             'apache_version' => $apache ? trim(explode("\n", $apache)[0] ?? '') : null,
         ];
     }
@@ -130,20 +129,20 @@ class LinuxInfoDriver  extends SystemInformationProvider {
     private function getCpuUsagePercent(): ?float
     {
         $stat1 = @file_get_contents('/proc/stat');
-        if (! $stat1) {
+        if (!$stat1) {
             return null;
         }
 
         usleep(200_000); // 200ms sample
 
         $stat2 = @file_get_contents('/proc/stat');
-        if (! $stat2) {
+        if (!$stat2) {
             return null;
         }
 
         $parse = static function (string $stat): array {
             preg_match('/^cpu\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/', $stat, $m);
-            $idle  = (int) ($m[4] ?? 0) + (int) ($m[5] ?? 0);
+            $idle = (int)($m[4] ?? 0) + (int)($m[5] ?? 0);
             $total = array_sum(array_slice(array_map('intval', $m), 1));
 
             return ['idle' => $idle, 'total' => $total];
@@ -152,7 +151,7 @@ class LinuxInfoDriver  extends SystemInformationProvider {
         $s1 = $parse($stat1);
         $s2 = $parse($stat2);
 
-        $diffIdle  = $s2['idle']  - $s1['idle'];
+        $diffIdle = $s2['idle'] - $s1['idle'];
         $diffTotal = $s2['total'] - $s1['total'];
 
         if ($diffTotal === 0) {
@@ -164,7 +163,7 @@ class LinuxInfoDriver  extends SystemInformationProvider {
 
     private function kbToHuman(string $kb): string
     {
-        return $this->formatBytes((int) rtrim($kb, 'K') * 1024);
+        return $this->formatBytes((int)rtrim($kb, 'K') * 1024);
     }
 
     private function ramFallback(): array
@@ -183,7 +182,7 @@ class LinuxInfoDriver  extends SystemInformationProvider {
     private function diskFallback(): array
     {
         $total = disk_total_space('/');
-        $free  = disk_free_space('/');
+        $free = disk_free_space('/');
 
         if ($total === false) {
             return [];
