@@ -69,6 +69,11 @@ readonly class LinuxDriver implements DriverInterface
         return $this->webserver->software();
     }
 
+    public function webServer(): array
+    {
+        return $this->webserver->detect();
+    }
+
     public function collector(): array
     {
         return [
@@ -87,7 +92,7 @@ readonly class LinuxDriver implements DriverInterface
             'web_server'       => [
                 'software'   => $this->software(),
                 'php_sapi_name' => $this->php_sapi_name(),
-                'detect'
+                'detect' =>$this->webServer(),
 
             ],
         ];

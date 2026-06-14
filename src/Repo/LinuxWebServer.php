@@ -18,15 +18,15 @@ class LinuxWebServer
 
     public function detect(): array
     {
-        $software = strtolower( $_SERVER['SERVER_SOFTWARE'] ?? '' );
+        $software = strtolower($_SERVER['SERVER_SOFTWARE'] ?? '');
 
         return [
-            'apache' => str_contains($software, 'apache'),
-            'nginx' => str_contains($software, 'nginx'),
-            'litespeed' => str_contains($software, 'litespeed'),
-            'iis' => str_contains($software, 'iis'),
+            'apache'        => str_contains($software, 'apache'),
+            'nginx'         => str_contains($software, 'nginx'),
+            'litespeed'     => str_contains($software, 'litespeed'),
+            'iis'           => str_contains($software, 'iis'),
             'openlitespeed' => str_contains($software, 'openlitespeed'),
-            'caddy' => str_contains($software, 'caddy'),
+            'caddy'         => str_contains($software, 'caddy'),
         ];
     }
 
