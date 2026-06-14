@@ -2,38 +2,27 @@
 
 namespace Teksite\SystemInfo\Repo;
 
-class LaravelInfo {
+use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Config;
+
+class LaravelInfo
+{
     public function collect(): array
     {
-        $opcache = function_exists('opcache_get_status')
-            ? @opcache_get_status(false)
-            : false;
-
         return [
-            'version' => PHP_VERSION,
+            'version' => App::version(),
 
-            'sapi' => php_sapi_name(),
+            'environment' => App::environment(),
 
-            'thread_safe' => PHP_ZTS,
+            'debug' => (bool)Config::get('app.debug'),
 
-            'architecture' => PHP_INT_SIZE === 8 ? '64-bit' : '32-bit',
+            'cache_driver' => Config::get('cache.default'),
 
-            'memory_limit' => ini_get('memory_limit'),
+            'session_driver' => Config::get('session.driver'),
 
-            'max_execution_time' => (int) ini_get('max_execution_time'),
+            'queue_driver' => Config::get('queue.default'),
 
-            'loaded_extensions' => get_loaded_extensions(),
-
-            'opcache' => [
-                'enabled' => (bool) ($opcache['opcache_enabled'] ?? false),
-            ],
-
-            'jit' => [
-                'enabled' => (
-                    (int) ini_get('opcache.jit_buffer_size') > 0
-                ),
-                'buffer_size' => ini_get('opcache.jit_buffer_size'),
-            ],
+            'storage_writable' => is_writable(storage_path()),
         ];
     }
 }

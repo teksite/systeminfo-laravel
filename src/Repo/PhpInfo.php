@@ -22,8 +22,6 @@ class PhpInfo {
 
             'max_execution_time' => (int) ini_get('max_execution_time'),
 
-            'loaded_extensions' => get_loaded_extensions(),
-
             'opcache' => [
                 'enabled' => (bool) ($opcache['opcache_enabled'] ?? false),
             ],
@@ -34,6 +32,9 @@ class PhpInfo {
                 ),
                 'buffer_size' => ini_get('opcache.jit_buffer_size'),
             ],
+
+            'loaded_extensions' => get_loaded_extensions(),
+
         ];
     }
 }
