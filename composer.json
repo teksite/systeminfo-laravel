@@ -1,6 +1,17 @@
 {
     "name": "teksite/systeminfo-laravel",
-    "description": "A package to collect some information about System information suc as OS, CPU, RAM",
+    "description": "A Laravel package for collecting system, server, PHP and Laravel runtime information",
+    "keywords": [
+        "laravel",
+        "system-info",
+        "monitoring",
+        "server",
+        "cpu",
+        "ram",
+        "disk",
+        "php",
+        "laravel-monitor"
+    ],
     "authors": [
         {
             "name": "Sina Zangiband",
@@ -16,7 +27,7 @@
     },
     "require": {
         "php": "^8.3",
-        "laravel/framework": "^13"
+        "illuminate/support": "^11.0|^12.0|^13.0"
     },
     "extra": {
         "laravel": {
