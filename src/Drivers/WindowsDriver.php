@@ -8,8 +8,14 @@ use Teksite\SystemInfo\Repo\WindowsOS;
 
 readonly class WindowsDriver implements DriverInterface
 {
+    protected WindowsHardware $hardware;
+    protected WindowsOS $os;
 
-    public function __construct(protected WindowsHardware $hardware , protected WindowsOS $os) {}
+    public function __construct()
+    {
+        $this->hardware = new WindowsHardware();
+        $this->os = new WindowsOS();
+    }
 
     public function cpu(): array
     {
@@ -47,6 +53,7 @@ readonly class WindowsDriver implements DriverInterface
     {
         return $this->os->version();
     }
+
     public function timeZone(): string
     {
         return $this->os->timeZone();

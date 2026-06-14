@@ -8,7 +8,14 @@ use Teksite\SystemInfo\Repo\LinuxOS;
 
 readonly class LinuxDriver implements DriverInterface
 {
-    public function __construct(protected LinuxHardware $hardware, protected LinuxOS $os) {}
+    protected LinuxHardware $hardware;
+    protected LinuxOS $os;
+
+    public function __construct()
+    {
+        $this->hardware = new LinuxHardware;
+        $this->os = new LinuxOS;
+    }
 
     public function cpu(): array
     {
