@@ -22,6 +22,13 @@ class DatabaseInfo
     }
 
 
+    public function database()
+    {
+        $connection = $this->connection();
+        return Config::get("database.connections.{$connection}.database");
+    }
+
+
     protected function version(): ?string
     {
         try {
@@ -86,7 +93,7 @@ class DatabaseInfo
     {
         $db = DB::getDatabaseName();
 
-        $row = DB::selectOne('SELECT pg_database_size(?) AS size', [$db] );
+        $row = DB::selectOne('SELECT pg_database_size(?) AS size', [$db]);
 
         return (int)($row->size ?? 0);
     }
@@ -102,11 +109,9 @@ class DatabaseInfo
     {
         return [
             'connection' => $this->connection(),
-
             'driver' => $this->driver(),
-
-            'version' => $this->version(),
-
+            'database' => $this->database(),
+            'version'  => $this->version(),
             'size' => $this->size(),
         ];
     }
