@@ -9,11 +9,6 @@ class WindowsWebServer
         return $_SERVER['SERVER_SOFTWARE'] ?? null;
     }
 
-    public function sapi(): string
-    {
-        return php_sapi_name();
-    }
-
     public function detect(): array
     {
         $software = strtolower(

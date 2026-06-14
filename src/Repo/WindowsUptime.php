@@ -26,9 +26,8 @@ class WindowsUptime
         return time() - $bootTime->getTimestamp();
     }
 
-    public function human(): ?string
+    public function human(): string|float|null
     {
-       return $this->secondToHumans($this->seconds());
-
+        return $this->secondToHumans($this->seconds());
     }
 }

@@ -4,7 +4,9 @@ namespace Teksite\SystemInfo\Drivers;
 
 use Teksite\SystemInfo\Contracts\DriverInterface;
 use Teksite\SystemInfo\Repo\WindowsHardware;
+use Teksite\SystemInfo\Repo\WindowsNetwork;
 use Teksite\SystemInfo\Repo\WindowsOS;
+use Teksite\SystemInfo\Repo\WindowsUptime;
 use Teksite\SystemInfo\Repo\WindowsWebServer;
 
 readonly class WindowsDriver implements DriverInterface
@@ -13,12 +15,18 @@ readonly class WindowsDriver implements DriverInterface
     protected WindowsOS $os;
     protected WindowsWebServer $webserver;
 
+    protected WindowsUptime $uptime;
+
+    protected WindowsNetwork $network;
+
 
     public function __construct()
     {
         $this->hardware = new WindowsHardware();
         $this->os = new WindowsOS();
         $this->webserver = new WindowsWebServer();
+        $this->uptime = new WindowsUptime();
+        $this->network = new WindowsNetwork();
 
     }
 
@@ -38,7 +46,7 @@ readonly class WindowsDriver implements DriverInterface
         return $this->hardware->disk();
     }
 
-    public function gpu(): array
+    public function gpu(): ?array
     {
         return $this->hardware->gpu();
     }
@@ -70,14 +78,29 @@ readonly class WindowsDriver implements DriverInterface
         return $this->webserver->software();
     }
 
-    public function php_sapi_name(): ?string
+    public function phpSapiName(): ?string
     {
-        return $this->webserver->software();
+        return $this->webserver->phpSapi();
     }
 
     public function webServer(): array
     {
         return $this->webserver->detect();
+    }
+
+    public function upTime(): ?string
+    {
+        return $this->uptime->human();
+    }
+
+    public function localIp(): ?string
+    {
+        return $this->network->localIp();
+    }
+
+    public function publicIp(): ?string
+    {
+        return $this->network->publicIp();
     }
 
 
@@ -90,17 +113,26 @@ readonly class WindowsDriver implements DriverInterface
                 'disk' => $this->disk(),
                 'gpu'  => $this->gpu(),
             ],
+            'network'    => [
+                'localIp'  => $this->localIp(),
+                'publicIp' => $this->publicIp(),
+            ],
             'os'         => [
                 'family'   => $this->family(),
                 'hostname' => $this->hostname(),
                 'version'  => $this->version(),
                 'timeZone' => $this->timeZone(),
+                'upTime'  => $this->upTime(),
             ],
             'web_server' => [
                 'software'      => $this->software(),
-                'php_sapi_name' => $this->php_sapi_name(),
+                'php_sapi_name' => $this->phpSapiName(),
                 'detect'        => $this->webServer(),
 
+            ],
+            'meta' => [
+                'timestamp' => time(),
+                'datetime' => date('Y-m-d H:i:s'),
             ],
         ];
     }

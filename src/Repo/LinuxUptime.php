@@ -19,9 +19,8 @@ class LinuxUptime
         return (int) explode(' ', $content)[0];
     }
 
-    public function human(): ?string
+    public function human(): string|float|null
     {
         return $this->secondToHumans($this->seconds());
-
     }
 }

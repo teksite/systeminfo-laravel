@@ -11,7 +11,7 @@ trait Calculates
         return round(($used / $total) * 100, 2);
     }
 
-    public function secondToHumans(null|float $seconds): float|null
+    public function secondToHumans(null|float $seconds): string|null
     {
         if ($seconds === null) return null;
 
