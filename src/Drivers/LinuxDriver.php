@@ -5,16 +5,19 @@ namespace Teksite\SystemInfo\Drivers;
 use Teksite\SystemInfo\Contracts\DriverInterface;
 use Teksite\SystemInfo\Repo\LinuxHardware;
 use Teksite\SystemInfo\Repo\LinuxOS;
+use Teksite\SystemInfo\Repo\LinuxWebServer;
 
 readonly class LinuxDriver implements DriverInterface
 {
     protected LinuxHardware $hardware;
     protected LinuxOS $os;
+    protected LinuxWebServer $webserver;
 
     public function __construct()
     {
         $this->hardware = new LinuxHardware;
         $this->os = new LinuxOS;
+        $this->webserver = new LinuxWebServer();
     }
 
     public function cpu(): array
@@ -57,6 +60,15 @@ readonly class LinuxDriver implements DriverInterface
         return $this->os->timeZone();
     }
 
+    public function software(): ?string
+    {
+        return $this->webserver->software();
+    }
+    public function php_sapi_name(): ?string
+    {
+        return $this->webserver->software();
+    }
+
     public function collector(): array
     {
         return [
@@ -71,6 +83,12 @@ readonly class LinuxDriver implements DriverInterface
                 'hostname' => $this->hostname(),
                 'version'  => $this->version(),
                 'timeZone' => $this->timeZone(),
+            ],
+            'web_server'       => [
+                'software'   => $this->software(),
+                'php_sapi_name' => $this->php_sapi_name(),
+                'detect'
+
             ],
         ];
     }

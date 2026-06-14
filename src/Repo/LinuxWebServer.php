@@ -18,9 +18,7 @@ class LinuxWebServer
 
     public function detect(): array
     {
-        $software = strtolower(
-            $_SERVER['SERVER_SOFTWARE'] ?? ''
-        );
+        $software = strtolower( $_SERVER['SERVER_SOFTWARE'] ?? '' );
 
         return [
             'apache' => str_contains($software, 'apache'),

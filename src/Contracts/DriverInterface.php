@@ -20,6 +20,8 @@ interface DriverInterface
 
     public function version(): array;
 
+    public function software();
+
     public function collector(): array;
 
 
