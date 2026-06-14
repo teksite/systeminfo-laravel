@@ -12,6 +12,15 @@ interface DriverInterface
 
     public function gpu(): array;
 
+    public function family(): string;
+
+    public function hostname(): string;
+
+    public function timeZone(): string;
+
+    public function version(): array;
+
+    public function collector(): array;
 
 
 }

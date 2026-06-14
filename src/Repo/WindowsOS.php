@@ -2,45 +2,59 @@
 
 namespace Teksite\SystemInfo\Repo;
 
-use Teksite\SystemInfo\Support\SafeExecutor;
+use Teksite\SystemInfo\Concerns\WindowsPS;
 
-class LinuxOs
+class WindowsOS
 {
+    use WindowsPS;
 
     public function family(): string
     {
-        return 'Linux';
+        return 'Windows';
+    }
+
+    public function hostname(): ?string
+    {
+        return gethostname() ?: null;
     }
 
     public function timeZone(): string
     {
-        if (SafeExecutor::fileExists('/etc/timezone')) {
-            $timezone = trim(file_get_contents('/etc/timezone'));
-        } elseif (SafeExecutor::commandExists('timedatectl')) {
-            $timezone = SafeExecutor::exec("timedatectl show --property=Timezone --value") ?? null;
-        }
+        $timezone = $this->ps('(Get-TimeZone).Id');
 
-        if (!$timezone) {
-            $timezone = date_default_timezone_get();
-        }
-        return $timezone;
+        return $timezone ?: date_default_timezone_get();
     }
 
-    /**
-     * @return array
-     */
     public function version(): array
     {
-        if (!SafeExecutor::fileExists('/etc/os-release')) return ['name' => 'Unknown', 'version' => null];
+        $json = $this->ps(
+            'Get-CimInstance Win32_OperatingSystem |
+             Select Caption,Version,BuildNumber |
+             ConvertTo-Json -Compress'
+        );
 
-        $osRelease = parse_ini_file('/etc/os-release');
+        $os = json_decode($json ?? '', true);
 
-        $name = $osRelease['PRETTY_NAME'] ?? $osRelease['NAME'] ?? null;
+        if (!is_array($os)) {
+            return [
+                'name'      => 'Unknown Windows',
+                'version'   => null,
+                'build'     => null,
+                'is_server' => false,
+            ];
+        }
 
-        $version = $osRelease['VERSION_ID'] ?? null;
+        $caption = $os['Caption'] ?? 'Unknown Windows';
 
-        return ['name' => $name, 'version' => $version];
+        return [
+            'name'    => $caption,
+            'version' => $os['Version'] ?? null,
+            'build'   => $os['BuildNumber'] ?? null,
 
-
+            'is_server' => str_contains(
+                strtolower($caption),
+                'server'
+            ),
+        ];
     }
 }

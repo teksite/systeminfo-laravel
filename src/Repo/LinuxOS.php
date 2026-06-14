@@ -4,99 +4,53 @@ namespace Teksite\SystemInfo\Repo;
 
 use Teksite\SystemInfo\Support\SafeExecutor;
 
-class LinuxHardware
+class LinuxOS
 {
-    public function cpu(): array
+
+
+    public function family(): string
     {
-        $info = SafeExecutor::fileExists('/proc/cpuinfo') ? file_get_contents('/proc/cpuinfo') : null;
-
-        if (!$info) return [
-            'model'   => null,
-            'cores'   => 0,
-            'threads' => 0,
-            'load'    => sys_getloadavg(),
-        ];
-
-        preg_match('/model name\s+:\s+(.+)/', $info, $model);
-        preg_match('/cpu cores\s+:\s+(\d+)/', $info, $cores);
-        preg_match('/siblings\s+:\s+(\d+)/', $info, $threads);
-
-        return [
-            'model'   => $model[1] ?? null,
-            'cores'   => (int)($cores[1] ?? 0),
-            'threads' => (int)($threads[1] ?? 0),
-            'load'    => sys_getloadavg(),
-        ];
+        return 'Linux';
     }
 
-    public function ram(): array
+    public function hostname(): ?string
     {
-        $data = file_get_contents('/proc/meminfo');
+        return gethostname() ?: null;
+    }
 
+    public function kernel(): string
+    {
+        return php_uname('r');
+    }
 
-        preg_match('/MemTotal:\s+(\d+)/', $data, $t);
-        preg_match('/MemAvailable:\s+(\d+)/', $data, $a);
+    public function timeZone(): string
+    {
+        $timezone = null;
 
-        $total = (int)($t[1] ?? 0);
-        $avail = (int)($a[1] ?? 0);
-
-        if ($total <= 0) {
-            return [
-                'total'   => null,
-                'used'    => null,
-                'free'    => null,
-                'percent' => null,
-            ];
+        if (SafeExecutor::fileExists('/etc/timezone')) {
+            $timezone = trim(
+                file_get_contents('/etc/timezone')
+            );
+        } elseif (SafeExecutor::commandExists('timedatectl')) {
+            $timezone = SafeExecutor::exec(
+                'timedatectl show --property=Timezone --value'
+            );
         }
 
-        $used = $total - $avail;
-
-        return [
-            'total'   => $total * 1024,
-            'used'    => $used * 1024,
-            'free'    => $avail * 1024,
-            'percent' => $total ? round(($used / $total) * 100, 2) : 0,
-        ];
+        return $timezone ?: date_default_timezone_get();
     }
 
-    public function disk(): array
+    public function version(): array
     {
-        $path = '/';
+        if (!SafeExecutor::fileExists('/etc/os-release')) return ['name' => 'Unknown', 'version' => null,];
+
+        $osRelease = parse_ini_file('/etc/os-release');
+
+        if (!is_array($osRelease)) return ['name' => 'Unknown', 'version' => null,];
 
         return [
-            'path'    => $path,
-            'total'   => disk_total_space($path),
-            'used'    => disk_total_space($path) - disk_free_space($path),
-            'free'    => disk_free_space($path),
-            'percent' => round(
-                ((disk_total_space($path) - disk_free_space($path)) / disk_total_space($path)) * 100,
-                2
-            ),
+            'name' => $osRelease['PRETTY_NAME'] ?? $osRelease['NAME'] ?? 'Unknown',
+            'version' => $osRelease['VERSION_ID'] ?? null,
         ];
-    }
-
-    public function gpu(): array
-    {
-        if (!SafeExecutor::commandExists('lspci')) {
-            return [
-                'name'           => null,
-                'memory'         => null,
-                'driver_version' => null,
-                'refresh_rate'   => null,
-            ];
-        }
-
-        $out = SafeExecutor::exec('lspci | grep -i vga');
-
-        return $out
-            ? [
-                'info' => $out,
-            ]
-            : [
-                'name'           => null,
-                'memory'         => null,
-                'driver_version' => null,
-                'refresh_rate'   => null,
-            ];
     }
 }
