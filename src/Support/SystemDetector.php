@@ -2,7 +2,8 @@
 
 namespace Teksite\SystemInfo\Support;
 
-class SystemDetector {
+final class SystemDetector
+{
     public static function isLinux(): bool
     {
         return PHP_OS_FAMILY === 'Linux';
@@ -13,23 +14,18 @@ class SystemDetector {
         return PHP_OS_FAMILY === 'Windows';
     }
 
+    public static function isMac(): bool
+    {
+        return PHP_OS_FAMILY === 'Darwin';
+    }
+
     public static function hasProc(): bool
     {
-        return is_readable('/proc/meminfo');
+        return @is_readable('/proc/meminfo');
     }
 
     public static function hasNvidia(): bool
     {
         return SafeExecutor::commandExists('nvidia-smi');
-    }
-
-    public static function hasNproc(): bool
-    {
-        return SafeExecutor::commandExists('nproc');
-    }
-
-    public static function hasWmic(): bool
-    {
-        return SafeExecutor::commandExists('wmic');
     }
 }

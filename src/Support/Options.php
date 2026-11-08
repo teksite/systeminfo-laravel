@@ -101,7 +101,7 @@ final class Options
 
         foreach (explode('.', $key) as $segment) {
 
-            if (!is_array($value) || !array_key_exists($segment, $value))   return $default;
+            if (!is_array($value) || !array_key_exists($segment, $value)) return $default;
 
             $value = $value[$segment];
         }
@@ -109,13 +109,11 @@ final class Options
         return $value ?? $default;
     }
 
-
     /** @return array<string, mixed> */
     public function all(): array
     {
         return $this->items;
     }
-
 
     /**
      * @param array<string, mixed> $base
@@ -134,9 +132,9 @@ final class Options
                 $base[$key] = $value; // scalars and lists replace
             }
         }
+
         return $base;
     }
-
 
     private static function isMap(array $array): bool
     {
