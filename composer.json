@@ -1,40 +1,70 @@
 {
     "name": "teksite/systeminfo-laravel",
-    "description": "A Laravel package for collecting system, server, PHP and Laravel runtime information",
+    "description": "Fast, secure system, server, PHP and Laravel runtime information for Laravel - with real-time metrics shaped for Chart.js.",
+    "type": "library",
     "keywords": [
         "laravel",
         "system-info",
         "monitoring",
-        "server",
+        "server-monitoring",
+        "metrics",
+        "chartjs",
+        "realtime",
         "cpu",
         "ram",
         "disk",
         "php",
         "laravel-monitor"
     ],
+    "license": "MIT",
     "authors": [
         {
             "name": "Sina Zangiband",
             "email": "sina.zangiband@gmail.com"
         }
     ],
-    "minimum-stability": "dev",
-    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "illuminate/cache": "^11.0|^12.0|^13.0",
+        "illuminate/console": "^11.0|^12.0|^13.0",
+        "illuminate/contracts": "^11.0|^12.0|^13.0",
+        "illuminate/database": "^11.0|^12.0|^13.0",
+        "illuminate/http": "^11.0|^12.0|^13.0",
+        "illuminate/routing": "^11.0|^12.0|^13.0",
+        "illuminate/support": "^11.0|^12.0|^13.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "phpunit/phpunit": "^11.0|^12.0"
+    },
     "autoload": {
         "psr-4": {
             "Teksite\\SystemInfo\\": "src/"
         }
     },
-    "require": {
-        "php": "^8.3",
-        "illuminate/support": "^11.0|^12.0|^13.0",
-        "ext-curl": "*"
+    "autoload-dev": {
+        "psr-4": {
+            "Teksite\\SystemInfo\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit"
     },
     "extra": {
         "laravel": {
             "providers": [
                 "Teksite\\SystemInfo\\SystemInformationProvider"
-            ]
+            ],
+            "aliases": {
+                "SystemInfo": "Teksite\\SystemInfo\\Facades\\SystemInfo"
+            }
         }
-    }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
 }
