@@ -2,7 +2,8 @@
 
 namespace Teksite\SystemInfo\Contracts;
 
-interface CollectorInterface {
+interface CollectorInterface
+{
+    /** @return array<string, mixed> */
     public function collect(): array;
-
 }
