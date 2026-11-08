@@ -10,7 +10,6 @@ use Teksite\SystemInfo\Console\ShowCommand;
 use Teksite\SystemInfo\Console\WatchCommand;
 use Teksite\SystemInfo\Contracts\DriverInterface;
 use Teksite\SystemInfo\Contracts\StoreInterface;
-
 use Teksite\SystemInfo\Http\Middleware\AuthorizeSystemInfo;
 use Teksite\SystemInfo\Metrics\HistoryStore;
 use Teksite\SystemInfo\Metrics\MetricsCollector;
@@ -39,7 +38,7 @@ class SystemInformationProvider extends ServiceProvider
         if (!$this->app['config']->get('system-info.http.enabled', true)) return;
 
         $this->loadRateLimiter();
-//        $this->loadRoutes();
+        $this->loadRoutes();
         $this->app->singleton(AuthorizeSystemInfo::class);
 
     }
