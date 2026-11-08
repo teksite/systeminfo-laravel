@@ -2,117 +2,114 @@
 
 namespace Teksite\SystemInfo\Repo;
 
-use Illuminate\Support\Facades\App;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Teksite\SystemInfo\Contracts\CollectorInterface;
+use Teksite\SystemInfo\Support\Options;
 
-class DatabaseInfo
+class DatabaseInfo implements CollectorInterface
 {
+    public function __construct(private readonly ?string $connectionName = null, private readonly bool $withSize = true) {}
 
-    public function connection()
+    public static function fromOptions(Options $options): self
     {
-        return Config::get('database.default');
-
+        return new self(null, (bool)$options->get('database.size', true));
     }
 
-    public function driver()
+    public function connection(): string
     {
-        $connection = $this->connection();
-        return Config::get("database.connections.{$connection}.driver");
+        return $this->connectionName ?? (string)Config::get('database.default');
     }
 
-
-    public function database()
+    public function driver(): ?string
     {
-        $connection = $this->connection();
-        return Config::get("database.connections.{$connection}.database");
+        $driver = Config::get("database.connections.{$this->connection()}.driver");
+
+        return is_string($driver) ? $driver : null;
     }
 
-
-    protected function version(): ?string
+    public function database(): ?string
     {
+        $database = Config::get("database.connections.{$this->connection()}.database");
+
+        return is_string($database) ? $database : null;
+    }
+
+    public function collect(): array
+    {
+        $db = null;
+        $latency = null;
+
         try {
-            $driver = DB::getDriverName();
-            return match ($driver) {
-                'mysql', 'pgsql' => DB::selectOne('select version() as version')->version,
-                'sqlite'         => DB::selectOne('select sqlite_version() as version')->version,
-                'sqlsrv'         => DB::selectOne(" SELECT SERVERPROPERTY('ProductVersion') AS version")->version,
-                default          => null,
-            };
+            $db = DB::connection($this->connectionName);
+            $start = hrtime(true);
+            $db->select('select 1');
+            $latency = round((hrtime(true) - $start) / 1e6, 2);
         } catch (\Throwable) {
-            return null;
+            $db = null;
         }
-    }
 
-    protected function size(): ?int
-    {
-        try {
+        $version = $db ? $this->version($db) : null;
+        $driver = $this->driver();
 
-            $driver = DB::getDriverName();
-
-            return match ($driver) {
-
-                'sqlite' => $this->sqliteSize(),
-
-                'mysql'  => $this->mysqlSize(),
-
-                'pgsql'  => $this->pgsqlSize(),
-
-                'sqlsrv' => $this->sqlServerSize(),
-
-                default  => null,
-            };
-
-        } catch (\Throwable) {
-            return null;
+        if ($driver === 'mysql' && $version !== null && stripos($version, 'mariadb') !== false) {
+            $driver = 'mariadb';
         }
-    }
 
-
-    protected function sqliteSize(): ?int
-    {
-        $path = Config::get(
-            'database.connections.sqlite.database'
-        );
-
-        return file_exists($path)
-            ? filesize($path)
-            : null;
-    }
-
-    protected function mysqlSize(): ?int
-    {
-        $db = DB::getDatabaseName();
-
-        $row = DB::selectOne(" SELECT SUM(data_length + index_length) AS size FROM information_schema.tables WHERE table_schema = ?", [$db]);
-
-        return (int)($row->size ?? 0);
-    }
-
-    protected function pgsqlSize(): ?int
-    {
-        $db = DB::getDatabaseName();
-
-        $row = DB::selectOne('SELECT pg_database_size(?) AS size', [$db]);
-
-        return (int)($row->size ?? 0);
-    }
-
-    protected function sqlServerSize(): ?int
-    {
-        $row = DB::selectOne("SELECT SUM(size) * 8 * 1024 AS size FROM sys.database_files");
-        return (int)($row->size ?? 0);
-    }
-
-
-    public function collector(): array
-    {
         return [
             'connection' => $this->connection(),
-            'driver' => $this->driver(),
-            'database' => $this->database(),
-            'version'  => $this->version(),
-            'size' => $this->size(),
+            'driver'     => $driver,
+            'database'   => $this->database(),
+            'connected'  => $db !== null,
+            'latency_ms' => $latency,
+            'version'    => $version,
+            'size'       => $db && $this->withSize ? $this->size($db) : null,
         ];
+    }
+
+    /** Backwards compatible alias. */
+    public function collector(): array
+    {
+        return $this->collect();
+    }
+
+    protected function version(Connection $db): ?string
+    {
+        try {
+            return match ($db->getDriverName()) {
+                'mysql', 'mariadb', 'pgsql' => (string)$db->selectOne('select version() as version')->version,
+                'sqlite'                    => (string)$db->selectOne('select sqlite_version() as version')->version,
+                'sqlsrv'                    => (string)$db->selectOne("select cast(serverproperty('ProductVersion') as varchar(50)) as version")->version,
+                default                     => null,
+            };
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    protected function size(Connection $db): ?int
+    {
+        try {
+            return match ($db->getDriverName()) {
+                'sqlite'           => $this->sqliteSize($db),
+                'mysql', 'mariadb' => (int)($db->selectOne(
+                    'select sum(data_length + index_length) as size from information_schema.tables where table_schema = ?',
+                    [$db->getDatabaseName()]
+                )->size ?? 0),
+                'pgsql'            => (int)($db->selectOne('select pg_database_size(current_database()) as size')->size ?? 0),
+                'sqlsrv'           => (int)($db->selectOne('select sum(cast(size as bigint)) * 8 * 1024 as size from sys.database_files')->size ?? 0),
+                default            => null,
+            };
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function sqliteSize(Connection $db): ?int
+    {
+        $path = $db->getDatabaseName();
+
+        return is_string($path) && $path !== ':memory:' && is_file($path) ? (int)filesize($path) : null;
     }
 }
