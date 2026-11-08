@@ -281,9 +281,9 @@ class LinuxDriver extends AbstractDriver
             // /proc/mounts escapes spaces and tabs as octal (e.g. "\040").
             $mountPoint = preg_replace_callback('/\\\\([0-7]{3})/', static fn(array $m): string => chr((int)octdec($m[1])), $f[1]);
 
-            if (Glob::matchAny($exclude, $mountPoint) || !@is_dir($mountPoint)) continue;
-
-
+            if (Glob::matchAny($exclude, $mountPoint) || !$this->isDirectory($mountPoint)) {
+                continue;
+            }
             // The same block device can be mounted many times (bind mounts, containers): keep the shortest path.
             $key = str_starts_with($f[0], '/dev/') ? $f[0] : $mountPoint;
 
@@ -468,4 +468,15 @@ class LinuxDriver extends AbstractDriver
 
         return $gpus;
     }
+
+    private function isDirectory(string $path): bool
+    {
+        $fixturePath =rtrim($this->root, '/\\')
+            . DIRECTORY_SEPARATOR
+            . str_replace('/', DIRECTORY_SEPARATOR, ltrim($path, '/'));
+
+        return is_dir($fixturePath);
+
+    }
+
 }

@@ -1,10 +1,9 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Teksite\SystemInfo\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Random\RandomException;
 use Teksite\SystemInfo\Drivers\LinuxDriver;
 use Teksite\SystemInfo\Drivers\WindowsDriver;
 use Teksite\SystemInfo\Support\Options;
@@ -14,22 +13,35 @@ final class DriversTest extends TestCase
 {
     private string $root;
 
+    /**
+     * @throws RandomException
+     */
     protected function setUp(): void
     {
-        $this->root = sys_get_temp_dir() . '/sysinfo_fx_' . bin2hex(random_bytes(4));
-        foreach (['/proc/net', '/etc', '/sys/fs/cgroup'] as $dir) {
+
+        $this->root = sys_get_temp_dir(). DIRECTORY_SEPARATOR. 'sysinfo_fx_'. bin2hex(random_bytes(4));
+
+        foreach (['/proc/net', '/etc', '/sys/fs/cgroup', '/tmp', '/var', '/usr',] as $dir) {
             mkdir($this->root . $dir, 0777, true);
         }
     }
 
     protected function tearDown(): void
     {
-        exec('rm -rf ' . escapeshellarg($this->root));
+        $this->removeDirectory($this->root);
     }
 
     private function put(string $path, string $content): void
     {
-        file_put_contents($this->root . $path, $content);
+        $fullPath = $this->root . str_replace('/', DIRECTORY_SEPARATOR, $path);
+
+        $directory = dirname($fullPath);
+
+        if (!is_dir($directory)){
+            mkdir($directory, 0777, true);
+        }
+
+        file_put_contents($fullPath, $content);
     }
 
     public function test_linux_sample_parsing(): void
@@ -159,5 +171,31 @@ final class DriversTest extends TestCase
         $this->assertFalse($d->version()['is_server']);
         $this->assertSame('Iran Standard Time', $d->timeZone());
         $this->assertSame(2, $ps->calls);                                      // everything else memoised
+    }
+
+
+    private function removeDirectory(string $directory): void
+    {
+        if (!is_dir($directory)) {
+            return;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(
+                $directory,
+                \FilesystemIterator::SKIP_DOTS
+            ),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            if ($item->isDir() && !$item->isLink()) {
+                rmdir($item->getPathname());
+            } else {
+                unlink($item->getPathname());
+            }
+        }
+
+        rmdir($directory);
     }
 }
