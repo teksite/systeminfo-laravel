@@ -2,24 +2,18 @@
 
 namespace Teksite\SystemInfo\Concerns;
 
+use Teksite\SystemInfo\Metrics\MetricsCalculator;
+use Teksite\SystemInfo\Support\Format;
+
 trait Calculates
 {
-    public function percent(float $used, float $total): float
+    public function percent(float|int $used, float|int $total): float
     {
-        if ($total <= 0) return 0;
-
-        return round(($used / $total) * 100, 2);
+        return MetricsCalculator::percent($used, $total);
     }
 
-    public function secondToHumans(null|float $seconds): string|null
+    public function secondToHumans(null|int|float $seconds): ?string
     {
-        if ($seconds === null) return null;
-
-
-        $days = floor($seconds / 86400);
-        $hours = floor(($seconds % 86400) / 3600);
-        $minutes = floor(($seconds % 3600) / 60);
-
-        return "{$days}d {$hours}h {$minutes}m";
+        return Format::duration($seconds);
     }
 }
